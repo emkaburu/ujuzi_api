@@ -54,20 +54,25 @@ $config = [
             'showScriptName' => false,
             'enableStrictParsing' => true,
             'rules' => [
+                'dashboard' => 'site/index',
                 'GET api/categories' => 'crop-category/list-all',
                 'GET api/categories/<uid>' => 'crop-category/view',
                 'POST api/categories' => 'crop-category/create',
                 'PUT api/categories/<uid>' => 'crop-category/update',
                 'DELETE api/categories/<uid>' => 'crop-category/delete',
-//                'DELETE categories' => 'crop-category/delete-multiple',
 
                 // Crop Routes
-                'GET api/crops' => 'crop/list-all',
-                'GET api/crops/<uid>' => 'crop/view',
-                'POST api/crops' => 'crop/create',
-                'PUT api/crops/<uid>' => 'crop/update',
-                'DELETE, api/crops/<uid>' => 'crop/delete',
-                // 'OPTIONS api/crops/<uid>' => 'crop/preflight',
+                'GET api/crops' => 'cropec/list-all',
+                'GET api/crops/<uid>' => 'cropec/view',
+                'POST api/crops' => 'cropec/create',
+                'PUT api/crops' => 'cropec/update',
+                'PUT api/crops/<uid>' => 'cropec/update',
+                'DELETE api/crops/<uid>' => 'cropec/delete',
+
+                'OPTIONS /api/crops' => 'cropec/preflight',
+                'OPTIONS /api/crops/<uid>' => 'cropec/preflight',
+                'OPTIONS /api/categories' => 'cropec/preflight',
+                'OPTIONS /api/categories/<uid>' => 'cropec/preflight'
             ],
         ],
 
@@ -81,7 +86,7 @@ if (YII_ENV_DEV) {
     $config['modules']['debug'] = [
         'class' => 'yii\debug\Module',
         // uncomment the following to add your IP if you are not connecting from localhost.
-        //'allowedIPs' => ['127.0.0.1', '::1'],
+        'allowedIPs' => ['*'],
     ];
 
     $config['bootstrap'][] = 'gii';

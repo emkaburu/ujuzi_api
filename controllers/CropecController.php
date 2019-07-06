@@ -1,6 +1,7 @@
 <?php
 namespace app\controllers;
 
+use app\models\CropCategory;
 use yii\rest\Controller;
 use yii\rest\ActiveController;
 use yii\data\ActiveDataProvider;
@@ -13,7 +14,7 @@ use Yii;
 
 use app\models\Crop;
 
-class CropController extends Controller{
+class CropecController extends Controller{
     public $enableCsrfValidation = false;
     public $modelClass = 'app\models\Crop';
     public $serializer = [
@@ -32,27 +33,18 @@ class CropController extends Controller{
         $content_type = 'application/json';
         $status = 200;
 
-        // set the status
-       /* $status_header = 'HTTP/1.1 ' . $status . ' ' . $this->_getStatusCodeMessage($status);
-        header($status_header);*/
         header("Access-Control-Allow-Origin: *");
         header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");
         header("Access-Control-Allow-Headers: Authorization");
         header('Content-type: ' . $content_type);
     }
 
-    public  function makeHeaders(){
-        $headers = Yii::$app->response->headers;
-        $headers->add("Access-Control-Allow-Origin", "*");
-        $headers->add("Access-Control-Allow-Methods", "OPTIONS, GET, POST, PUT, DELETE");
-        $headers->add("Content-type", "application/json");
-    }
 
     public function behaviors()
     {
         $behaviors = parent::behaviors();
-        $behaviors['authenticator']['except'] = ['options'];
 
+        $behaviors['authenticator']['except'] = ['options'];
         unset($behaviors['authenticator']);
 
         $behaviors['corsFilter'] = [
@@ -60,35 +52,37 @@ class CropController extends Controller{
             'cors' => [
                 'Origin' => static::allowedDomains(),
                 'Access-Control-Request-Method' => ['OPTIONS', 'GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD'],
-                'Access-Control-Request-Headers' => ['Origin', 'X-Requested-With', 'Content-Type', 'accept', 'Authorization'],
-                //
-                // 'Access-Control-Request-Headers' => ['*'],
+                 'Access-Control-Request-Headers' => ['*'],
             ],
             'actions' => [
                 'delete' => [
                     'Origin' => ['*'],
                     'Access-Control-Request-Method' => ['OPTIONS', 'DELETE', 'HEAD'],
-                    'Access-Control-Request-Headers' => ['Origin', 'X-Requested-With', 'Content-Type', 'accept', 'Authorization'],
+                    'Access-Control-Request-Headers' => ['*'],
                 ],
                 'create' => [
                     'Origin' => ['*'],
                     'Access-Control-Request-Method' => ['OPTIONS', 'POST', 'HEAD'],
-                    'Access-Control-Request-Headers' => ['Origin', 'X-Requested-With', 'Content-Type', 'accept', 'Authorization'],
+                    'Access-Control-Request-Headers' => ['*'],
+                ],
+                'update' => [
+                    'Origin' => ['*'],
+                    'Access-Control-Request-Method' => ['OPTIONS', 'PUT', 'HEAD'],
+                    'Access-Control-Request-Headers' => ['*'],
                 ],
             ]
         ];
 
         $behaviors['verbs'] = [
-              'class' => \yii\filters\VerbFilter::className(),
-              'actions' => [
-                  'list-all'  => ['GET'],
-                  'view'   => ['GET'],
-                  'create' => ['OPTIONS', 'POST'],
-                  'update' => ['OPTIONS', 'PUT'],
-                  'delete' => ['OPTIONS', 'DELETE'],
-//                  'delete' => ['DELETE'],
-              ]
-          ];
+            'class' => \yii\filters\VerbFilter::className(),
+            'actions' => [
+                'list-all'  => ['GET'],
+                'view'   => ['GET'],
+                'create' => ['OPTIONS', 'POST'],
+                'update' => ['OPTIONS', 'PUT'],
+                'delete' => ['OPTIONS', 'DELETE']
+            ]
+        ];
 
         return $behaviors;
     }
@@ -129,11 +123,8 @@ class CropController extends Controller{
     public function actionCreate() {
         //Get request object
         $request = Yii::$app->request;
-
-        // get all parameters
-//        $params = $request->getQueryParams();
         $params = $request->getBodyParams();
-//return $params['name'];
+
         $crop                   = new Crop();
         $crop->crop_name        = $params['name'];
         $crop->crop_description = $params['description'];
@@ -146,16 +137,30 @@ class CropController extends Controller{
     }
 
     /**
-     *  Delete the specified resource
+     *  Update the specified resource
      */
     public function actionUpdate() {
         $request = Yii::$app->request;
-        $params  = $request->getQueryParams();
-        $uid     = $params['uid'];
+        $params  = $request->getBodyParams();
+        $uid     = $params['uid']; // Need to get the ID of the crop
 
         $crop = Crop::findOne($uid);
+
+        if(!$crop){
+            $response = $this->createResponse(0);
+            return $response;
+        };
+
         $crop->crop_name        = $params['name'];
         $crop->crop_description = $params['description'];
+
+        //Check if the category exists first to prevent constraint violations
+        $response = $this->categoryCheck($params['category']);
+
+        if ($response['status'] == 0){
+            return $response;
+        }
+
         $crop->crop_category_id = $params['category'];
         $status = $crop->save();
 
@@ -169,25 +174,46 @@ class CropController extends Controller{
      */
     public function actionDelete() {
 
-//        $this->makeHeaders();
-
         $request = Yii::$app->request;
         $params  = $request->getQueryParams();
         $uid     = $params['uid'];
 
         $crop = Crop::findOne($uid);
+
+        if(!$crop){
+            $response = $this->createResponse(0);
+            return $response;
+        };
+
         $status = $crop->delete();
 
         $response = $this->createResponse($status);
         return $response;
     }
 
+    /**
+     * Create a response to the browser after a request
+     * @param $status
+     * @return array
+     */
     public function createResponse($status){
         $response = ['status' => 1, 'message' => 'Success'];
 
         if ($status != true || $status != 1 ){
             $response['status']  = 0;
             $response['message'] = "There was a problem performing the specified operation";
+        }
+
+        return $response;
+    }
+
+    public  function categoryCheck($category_id) {
+        $category = CropCategory::findOne($category_id);
+//        $response = [];
+        if(!$category){
+            $response = $this->createResponse(0);
+        }else {
+            $response = $this->createResponse(1);
         }
 
         return $response;
